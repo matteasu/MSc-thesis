@@ -1,4 +1,4 @@
 Manifest-Version: 0.0.1
 Project-Name: project
 Source: src/main/rascal
-Require-Libraries: |lib://clair|
+Require-Libraries: |lib://clair| 
