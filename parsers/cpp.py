@@ -1,21 +1,19 @@
 import re
-
-
-class cpp:
+class Cpp:
     primitives = ["int", "float", "void", "char", "string", "boolean"]
     viz = {"elements": {"nodes": [], "edges": []}}
 
     def __init__(self) -> None:
         pass
 
-    def addEdges(self, kind, content, other=None):
+    def add_edges(self, kind, content, other=None):
         match kind:
             case "hasScript":
-                id = hash(content[0])
+                edge_id = hash(content[0])
                 self.viz["elements"]["edges"].append(
                     {
                         "data": {
-                            "id": id,
+                            "id": edge_id,
                             "source": content[1]["class"],
                             "properties": {"weight": 1},
                             "target": content[0],
@@ -26,11 +24,11 @@ class cpp:
             case "hasParameter":
                 for parameter in content[1]["arguments"]:
                     if parameter is not None and parameter != "":
-                        id = hash(parameter["name"]) + hash(content[0])
+                        edge_id = hash(parameter["name"]) + hash(content[0])
                         self.viz["elements"]["edges"].append(
                             {
                                 "data": {
-                                    "id": id,
+                                    "id": edge_id,
                                     "source": content[0],
                                     "properties": {"weight": 1},
                                     "target": content[0] + "." + parameter["name"],
@@ -38,7 +36,7 @@ class cpp:
                                 }
                             }
                         )
-                        id = (
+                        edge_id = (
                             hash(parameter["name"])
                             + hash(content[0])
                             + hash(content[1]["location"]["file"])
@@ -46,7 +44,7 @@ class cpp:
                         self.viz["elements"]["edges"].append(
                             {
                                 "data": {
-                                    "id": id,
+                                    "id": edge_id,
                                     "source": content[1]["location"]["file"],
                                     "properties": {"weight": 1},
                                     "target": content[0] + "." + parameter["name"],
@@ -55,11 +53,11 @@ class cpp:
                             }
                         )
             case "returnType":
-                id = hash(content[0]) + hash(content[1]["returnType"])
+                edge_id = hash(content[0]) + hash(content[1]["returnType"])
                 self.viz["elements"]["edges"].append(
                     {
                         "data": {
-                            "id": id,
+                            "id": edge_id,
                             "source": content[0],
                             "properties": {"weight": 1},
                             "target": content[1]["returnType"],
@@ -68,11 +66,11 @@ class cpp:
                     }
                 )
             case "specializes":
-                id = hash(content[0]) + hash(content[1]["extends"])
+                edge_id = hash(content[0]) + hash(content[1]["extends"])
                 self.viz["elements"]["edges"].append(
                     {
                         "data": {
-                            "id": id,
+                            "id": edge_id,
                             "source": content[0],
                             "properties": {"weight": 1},
                             "target": content[1]["extends"],
@@ -81,11 +79,11 @@ class cpp:
                     }
                 )
             case "hasVariable":
-                id = hash(content[0]) + hash(content[1]["variableName"])
+                edge_id = hash(content[0]) + hash(content[1]["variableName"])
                 self.viz["elements"]["edges"].append(
                     {
                         "data": {
-                            "id": id,
+                            "id": edge_id,
                             "source": content[1]["functionName"],
                             "properties": {"weight": 1},
                             "target": content[0],
@@ -93,11 +91,11 @@ class cpp:
                         }
                     }
                 )
-                id = id + hash(other[content[1]["functionName"]]["location"]["file"])
+                edge_id = edge_id + hash(other[content[1]["functionName"]]["location"]["file"])
                 self.viz["elements"]["edges"].append(
                     {
                         "data": {
-                            "id": id,
+                            "id": edge_id,
                             "source": other[content[1]["functionName"]]["location"][
                                 "file"
                             ],
@@ -108,11 +106,11 @@ class cpp:
                     }
                 )
             case "invokes":
-                id = hash(content["target"]) + hash(content["source"])
+                edge_id = hash(content["target"]) + hash(content["source"])
                 self.viz["elements"]["edges"].append(
                     {
                         "data": {
-                            "id": id,
+                            "id": edge_id,
                             "source": content["source"],
                             "properties": {"weight": 1},
                             "target": content["target"],
@@ -124,11 +122,11 @@ class cpp:
                 if content[1]["location"].get("file") is None:
                     pass
                 else:
-                    id = hash(content[0]) + hash(content[1]["location"]["file"])
+                    edge_id = hash(content[0]) + hash(content[1]["location"]["file"])
                     self.viz["elements"]["edges"].append(
                         {
                             "data": {
-                                "id": id,
+                                "id": edge_id,
                                 "source": content[1]["location"]["file"],
                                 "properties": {"weight": 1},
                                 "target": content[0],
