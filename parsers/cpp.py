@@ -29,7 +29,7 @@ class Cpp:
                     }
                 )
             case "hasParameter":
-                for parameter in content[1]["arguments"]:
+                for parameter in content[1]["parameters"]:
                     if parameter is not None and parameter != "":
                         edge_id = hash(parameter["name"]) + hash(content[0])
                         self.viz["elements"]["edges"].append(
@@ -172,6 +172,49 @@ class Cpp:
                         }
                     }
                 )
+            case "parameter":
+                for parameter in content[1]["parameters"]:
+                    if parameter is not None and parameter != "":
+                        self.viz["elements"]["nodes"].append(
+                            {
+                                "data": {
+                                    "id": content[0] + "." + parameter["name"],
+                                    "properties": {
+                                        "simpleName": parameter["name"],
+                                        "kind": kind,
+                                    },
+                                    "labels": ["Variable"],
+                                }
+                            }
+                        )
+            case "method":
+                vulnerabilities = []
+                self.viz["elements"]["nodes"].append(
+                    {
+                        "data": {
+                            "id": content[0],
+                            "properties": {
+                                "simpleName": content[1]["methodName"],
+                                "kind": kind,
+                                "vulnerabilities": vulnerabilities,
+                            },
+                            "labels": ["Operation"],
+                        }
+                    }
+                )
+            case "class":
+                self.viz["elements"]["nodes"].append(
+                    {
+                        "data": {
+                            "id": content[0],
+                            "properties": {
+                                "simpleName": content[1]["className"],
+                                "kind": kind,
+                            },
+                            "labels": ["Structure"],
+                        }
+                    }
+                )
 
     def get_files(self):
         data = self.parsed["provides"]
@@ -196,11 +239,10 @@ class Cpp:
 
     def get_functions(self):
         functions = {}
-        arguments = []
         data = self.parsed["declaredType"]
         for element in data:
             if re.match("cpp\+function:", element[0]):
-                parameter_types = []
+                parameters = []
                 function = dict()
                 function["functionName"] = re.split(
                     "\(", re.sub("cpp\+function:.+\/", "", element[0])
@@ -213,9 +255,46 @@ class Cpp:
                     element, "returnType", returnField
                 )
                 if element[1]["parameterTypes"]:
-                    pass
+                    parameters = self.get_parameters(
+                        function["functionName"], function["location"]["file"]
+                    )
+                    i = 0
+                    for parameter in element[1]["parameterTypes"]:
+                        parameters[i]["type"] = self.get_parameter_type(
+                            parameter, self.get_type_field(parameter)
+                        )
+                        i += 1
+                function["parameters"] = parameters
                 functions[function["functionName"]] = function
         return functions
+
+    def get_methods(self):
+        data = self.parsed["declaredType"]
+        methods = {}
+        for element in data:
+            parameters = []
+            if re.match("cpp\+method", element[0]):
+                method = dict()
+                method["class"] = re.split(
+                    "\/", re.sub("cpp\+method:\/+", "", element[0])
+                )[0]
+                method["methodName"] = re.split(
+                    "\(", re.sub("cpp\+method:\/+.+/", "", element[0])
+                )[0]
+                method["returnType"] = self.get_type(
+                    element, "returnType", self.get_type_field(element[1]["returnType"])
+                )
+                if element[1]["parameterTypes"]:
+                    for parameter in element[1]["parameterTypes"]:
+                        parameters.append(
+                            self.get_parameter_type(
+                                parameter, self.get_type_field(parameter)
+                            )
+                        )
+                method["parameters"] = parameters
+                id = method["class"] + "." + method["methodName"]
+                methods[id] = method
+        return methods
 
     def get_type_field(self, element):
         if "baseType" in element.keys():
@@ -227,7 +306,7 @@ class Cpp:
 
     def get_type(self, element, field1, field2):
         if field2 == "decl":
-            return re.sub("cpp\+class:\/+,", "", element[1][field1][field2])
+            return re.sub("cpp\+class:\/+", "", element[1][field1][field2])
         if field2 == "type":
             if "decl" in element[1][field1][field2].keys():
                 if (
@@ -241,15 +320,119 @@ class Cpp:
                         "",
                         element[1][field1][field2]["decl"],
                     )
+            if "type" in element[1][field1][field2].keys():
+                if "decl" in element[1][field1][field2]["type"].keys():
+                    if "type" in element[1][field1][field2]["type"].keys():
+                        if (
+                            element[1][field1][field2]["type"]["type"]["decl"]
+                            == "cpp+classTemplate:///std/__cxx11/basic_string"
+                        ):
+                            return "string"
+                        return re.sub(
+                            "cpp\+class:\/+",
+                            "",
+                            element[1][field1][field2]["type"]["type"]["decl"],
+                        )
+                    if (
+                        element[1][field1][field2]["type"]["decl"]
+                        == "cpp+classTemplate:///std/__cxx11/basic_string"
+                    ):
+                        return "string"
+                    return re.sub(
+                        "cpp\+class:\/+", "", element[1][field1][field2]["type"]["decl"]
+                    )
         if field2 == "baseType":
             return element[1][field1][field2]
 
+    def get_parameter_type(self, element, field):
+        if field == "decl":
+            return re.sub("cpp\+class:\/+", "", element[field])
+        if field == "type":
+            if "decl" in element[field].keys():
+                if (
+                    element[field]["decl"]
+                    == "cpp+classTemplate:///std/__cxx11/basic_string"
+                ):
+                    return "string"
+                else:
+                    return re.sub("cpp\+class:\/+", element[field]["decl"])
+            if "baseType" in element[field].keys():
+                return element[field]["baseType"]
+            if "modifiers" in element[field].keys():
+                pass
+        if field == "baseType":
+            return element[field]
+
+    def get_parameters(self, function, location):
+        data = self.parsed["declarations"]
+        parameters = []
+        for element in data:
+            if (
+                re.match("cpp\+parameter", element[0])
+                and function in element[0]
+                and location in element[1]
+                and re.match("\|file:\/+.+.\|", element[1])
+            ):
+                parameter = {}
+                parameter["name"] = re.sub("cpp\+parameter:\/+.+\/", "", element[0])
+                parameter["location"] = int(
+                    re.split(",", re.sub("\|file:\/+.+\|\(", "", element[1]))[0]
+                )
+                parameters.append(parameter)
+        parameters = sorted(parameters, key=lambda d: d["location"])
+        return parameters
+
+    def get_classes_location(self, c):
+        data = self.parsed["functionDefinitions"]
+        location = {}
+        for element in data:
+            if re.match("cpp\+constructor:\/+\/"+c, element[0]) and c in element[0]:
+                location["file"], location["position"] = re.split("\(", element[1])
+                location["file"] = re.sub("\|file:.+/", "", location["file"])[:-1]
+                location["position"] = "(" + location["position"]
+                break
+        return location
+
+    def get_classes(self):
+        data = self.parsed["containment"]
+        classes = {}
+        for element in data:
+            if len(element) > 1:
+                if re.match("cpp\+class", element[0]):
+                    c = {}
+                    if re.match("cpp\+constructor", element[1]):
+                        c["className"] = re.split(
+                            "\(", re.sub("cpp\+constructor:\/+.+\/", "", element[1])
+                        )[0]
+                        extends = self.parsed["extends"]
+                        c["extends"] = None
+                        for el in extends:
+                            if el[1] == element[0]:
+                                c["extends"] = re.sub("cpp\+class:\/+", "", el[0])
+                                break
+                        c["location"] = self.get_classes_location(c["className"])
+                        id = c["className"]
+                        print(c)
+                        classes[id] = c
+        return classes
+
     def export(self):
+        for file in self.get_files():
+            self.add_nodes("file", file)
         functions = self.get_functions()
         for func in functions.items():
             self.add_nodes("function", func, None)
+            if func[1]["parameters"]:
+                self.add_nodes("parameter", func)
+                self.add_edges("hasParameter", func)
             self.add_edges("contains", func)
-        for file in self.get_files():
-            self.add_nodes("file", file)
+        for c in self.get_classes().items():
+            self.add_nodes("class", c)
+            if c[1]["extends"] is not None:
+                self.add_edges("specializes", c)
+            self.add_edges("contains", c)
+        for m in self.get_methods().items():
+            self.add_nodes("method", m)
+            self.add_edges("hasScript", m)
         with open(os.path.join(self.path, "converted.json"), "w") as f:
             f.write(json.dumps(self.viz))
