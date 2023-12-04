@@ -25,7 +25,7 @@ stdLib = [
 ]
 path = "\|file:///home/masuni/rps-cpp/\|"
 includeDirs = [path]
-# os.system("cd ./project && java -jar rascal.jar Main -srcPath {} -names {} -stdLib {} -includeDir {}".format(path,' '.join(names),' '.join(stdLib),' '.join(includeDirs)))
+#os.system("cd ./project && java -jar rascal.jar Main -srcPath {} -names {} -stdLib {} -includeDir {}".format(path,' '.join(names),' '.join(stdLib),' '.join(includeDirs)))
 print("trying to clean the file")
 utils.cleaner(path)
 with open(os.path.join(utils.get_cleanPath(path), "m3_clean.json"), "r") as clean:

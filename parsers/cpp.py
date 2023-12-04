@@ -226,7 +226,7 @@ class Cpp:
             files[files.index(f)] = re.sub("\/.+\/", "", f)
         return files
 
-    def get_actual_location(self, function):
+    def get_function_location(self, function):
         data = self.parsed["functionDefinitions"]
         location = {}
         for element in data:
@@ -247,12 +247,12 @@ class Cpp:
                 function["functionName"] = re.split(
                     "\(", re.sub("cpp\+function:.+\/", "", element[0])
                 )[0]
-                function["location"] = self.get_actual_location(
+                function["location"] = self.get_function_location(
                     function["functionName"]
                 )
                 returnField = self.get_type_field(element[1]["returnType"])
                 function["returnType"] = self.get_type(
-                    element, "returnType", returnField
+                    element[1]["returnType"], returnField
                 )
                 if element[1]["parameterTypes"]:
                     parameters = self.get_parameters(
@@ -282,7 +282,8 @@ class Cpp:
                     "\(", re.sub("cpp\+method:\/+.+/", "", element[0])
                 )[0]
                 method["returnType"] = self.get_type(
-                    element, "returnType", self.get_type_field(element[1]["returnType"])
+                    element[1]["returnType"],
+                    self.get_type_field(element[1]["returnType"]),
                 )
                 if element[1]["parameterTypes"]:
                     for parameter in element[1]["parameterTypes"]:
@@ -297,14 +298,17 @@ class Cpp:
         return methods
 
     def get_type_field(self, element):
-        if "baseType" in element.keys():
-            return "baseType"
-        if "decl" in element.keys():
-            return "decl"
-        if "type" in element.keys():
-            return "type"
+        try:
+            if "baseType" in element.keys():
+                return "baseType"
+            if "decl" in element.keys():
+                return "decl"
+            if "type" in element.keys():
+                return "type"
+        except:
+            return None
 
-    def get_type(self, element, field1, field2):
+    def get_type_deprecated(self, element, field1, field2):
         if field2 == "decl":
             return re.sub("cpp\+class:\/+", "", element[1][field1][field2])
         if field2 == "type":
@@ -343,6 +347,18 @@ class Cpp:
                     )
         if field2 == "baseType":
             return element[1][field1][field2]
+
+    def get_type(self, element, field):
+        if self.get_type_field(element[field]) is not None:
+            self.get_type(element[field], self.get_type_field(element[field]))
+        else:
+            if field == "baseType":
+                return element[field]
+            if field == "decl":
+                if element[field] == "cpp+classTemplate:///std/__cxx11/basic_string":
+                    return "string"
+                else:
+                    return re.sub("cpp\+class:\/+", "", element[field])
 
     def get_parameter_type(self, element, field):
         if field == "decl":
@@ -386,7 +402,7 @@ class Cpp:
         data = self.parsed["functionDefinitions"]
         location = {}
         for element in data:
-            if re.match("cpp\+constructor:\/+\/"+c, element[0]) and c in element[0]:
+            if re.match("cpp\+constructor:\/+\/" + c, element[0]) and c in element[0]:
                 location["file"], location["position"] = re.split("\(", element[1])
                 location["file"] = re.sub("\|file:.+/", "", location["file"])[:-1]
                 location["position"] = "(" + location["position"]
@@ -412,7 +428,6 @@ class Cpp:
                                 break
                         c["location"] = self.get_classes_location(c["className"])
                         id = c["className"]
-                        print(c)
                         classes[id] = c
         return classes
 
