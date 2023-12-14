@@ -238,6 +238,17 @@ class Cpp:
                 break
         return location
 
+    def get_method_location(self, className, method):
+        data = self.parsed["functionDefinitions"]
+        location = {}
+        for element in data:
+            if re.match("cpp\+method:\/+{}\/{}".format(className, method), element[0]):
+                location["file"], location["position"] = re.split("\(", element[1])
+                location["file"] = re.sub("\|file:.+/", "", location["file"])[:-1]
+                location["position"] = "(" + location["position"]
+                break
+        return location
+
     def get_functions(self):
         functions = {}
         data = self.parsed["declaredType"]
@@ -282,17 +293,31 @@ class Cpp:
                 method["methodName"] = re.split(
                     "\(", re.sub("cpp\+method:\/+.+/", "", element[0])
                 )[0]
+
+                method["location"] = self.get_method_location(
+                    method["class"], method["methodName"]
+                )
+
                 method["returnType"] = self.get_type(
                     element[1]["returnType"],
                     self.get_type_field(element[1]["returnType"]),
                 )
                 if element[1]["parameterTypes"]:
-                    for parameter in element[1]["parameterTypes"]:
-                        parameters.append(
-                            self.get_parameter_type(
-                                parameter, self.get_type_field(parameter)
-                            )
+                    """for parameter in element[1]["parameterTypes"]:
+                    parameters.append(
+                        self.get_parameter_type(
+                            parameter, self.get_type_field(parameter)
                         )
+                    )"""
+                    parameters = self.get_parameters(
+                        method["methodName"], method["location"]["file"],method["class"]
+                    )
+                    i = 0
+                    for parameter in element[1]["parameterTypes"]:
+                        parameters[i]["type"] = self.get_parameter_type(
+                            parameter, self.get_type_field(parameter)
+                        )
+                        i += 1
                 method["parameters"] = parameters
                 id = method["class"] + "." + method["methodName"]
                 methods[id] = method
@@ -380,13 +405,19 @@ class Cpp:
         if field == "baseType":
             return element[field]
 
-    def get_parameters(self, function, location):
+    def get_parameters(self, function, location,class_name=None):
         data = self.parsed["declarations"]
         parameters = []
+        if location is None:
+            return parameters
+        if class_name is not None:
+            find=""+class_name+"/"+function
+        else:
+            find=function
         for element in data:
             if (
                 re.match("cpp\+parameter", element[0])
-                and function in element[0]
+                and find in element[0]
                 and location in element[1]
                 and re.match("\|file:\/+.+.\|", element[1])
             ):
@@ -450,7 +481,7 @@ class Cpp:
                             target = re.sub("cpp\+method:\/+", "", element[1])
                             target = target.replace("/", ".")
                         target = re.split("\(", target)[0]
-                        
+
                         if target in operations.keys():
                             invoke["target"] = target
                             invokes.append(invoke)
@@ -464,25 +495,29 @@ class Cpp:
         for file in self.get_files():
             self.add_nodes("file", file)
         functions = self.get_functions()
-
         for func in functions.items():
             self.add_nodes("function", func, None)
             if func[1]["parameters"]:
                 self.add_nodes("parameter", func)
                 self.add_edges("hasParameter", func)
             self.add_edges("contains", func)
+
         for c in self.get_classes().items():
             self.add_nodes("class", c)
             if c[1]["extends"] is not None:
                 self.add_edges("specializes", c)
             self.add_edges("contains", c)
+
         methods = self.get_methods()
         for m in methods.items():
             self.add_nodes("method", m)
             self.add_edges("hasScript", m)
+            if m[1]["parameters"]:
+                self.add_nodes("parameter", m)
+                self.add_edges("hasParameter", m)
         operations = deepcopy(methods)
         operations.update(functions)
         for invoke in self.get_invokes(operations):
-            self.add_edges("invokes",invoke)
+            self.add_edges("invokes", invoke)
         with open(os.path.join(self.path, "converted.json"), "w") as f:
             f.write(json.dumps(self.viz))
