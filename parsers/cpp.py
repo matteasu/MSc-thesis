@@ -1,3 +1,4 @@
+from copy import deepcopy
 import re
 import os
 import json
@@ -431,10 +432,39 @@ class Cpp:
                         classes[id] = c
         return classes
 
+    def get_invokes(self, operations):
+        data = self.parsed["callGraph"]
+        invokes = []
+        for operation in operations.items():
+            for element in data:
+                if re.match(".+\.", operation[0]):
+                    source = operation[0].replace(".", "/")
+                else:
+                    source = operation[0]
+                if source in element[0]:
+                    invoke = {}
+                    invoke["source"] = operation[0]
+                    try:
+                        target = re.sub("cpp\+function:\/+.+\/", "", element[1])
+                        if re.match("cpp\+", target):
+                            target = re.sub("cpp\+method:\/+", "", element[1])
+                            target = target.replace("/", ".")
+                        target = re.split("\(", target)[0]
+                        
+                        if target in operations.keys():
+                            invoke["target"] = target
+                            invokes.append(invoke)
+                    except:
+                        pass
+                else:
+                    pass
+        return invokes
+
     def export(self):
         for file in self.get_files():
             self.add_nodes("file", file)
         functions = self.get_functions()
+
         for func in functions.items():
             self.add_nodes("function", func, None)
             if func[1]["parameters"]:
@@ -446,8 +476,13 @@ class Cpp:
             if c[1]["extends"] is not None:
                 self.add_edges("specializes", c)
             self.add_edges("contains", c)
-        for m in self.get_methods().items():
+        methods = self.get_methods()
+        for m in methods.items():
             self.add_nodes("method", m)
             self.add_edges("hasScript", m)
+        operations = deepcopy(methods)
+        operations.update(functions)
+        for invoke in self.get_invokes(operations):
+            self.add_edges("invokes",invoke)
         with open(os.path.join(self.path, "converted.json"), "w") as f:
             f.write(json.dumps(self.viz))
