@@ -144,6 +144,20 @@ class Cpp:
                             }
                         }
                     )
+            case "type":
+                content = list(zip(content.keys(),content.values()))[0]
+                id = hash(content[0]) - hash(content[1]["name"])
+                self.viz["elements"]["edges"].append(
+                    {
+                        "data": {
+                            "id": id,
+                            "source": content[0] + "." + content[1]["name"],
+                            "properties": {"weight": 1},
+                            "target": content[1]["type"],
+                            "labels": [kind],
+                        }
+                    }
+                )
 
     def add_nodes(self, kind, content, issues=None):
         match kind:
@@ -188,6 +202,8 @@ class Cpp:
                                 }
                             }
                         )
+                        if parameter["type"] is not None:
+                            self.add_edges("type", {content[0]: parameter})
             case "method":
                 vulnerabilities = []
                 self.viz["elements"]["nodes"].append(
@@ -213,6 +229,16 @@ class Cpp:
                                 "kind": kind,
                             },
                             "labels": ["Structure"],
+                        }
+                    }
+                )
+            case "Primitive":
+                self.viz["elements"]["nodes"].append(
+                    {
+                        "data": {
+                            "id": content,
+                            "properties": {"simpleName": content},
+                            "labels": [kind],
                         }
                     }
                 )
@@ -310,7 +336,9 @@ class Cpp:
                         )
                     )"""
                     parameters = self.get_parameters(
-                        method["methodName"], method["location"]["file"],method["class"]
+                        method["methodName"],
+                        method["location"]["file"],
+                        method["class"],
                     )
                     i = 0
                     for parameter in element[1]["parameterTypes"]:
@@ -405,15 +433,15 @@ class Cpp:
         if field == "baseType":
             return element[field]
 
-    def get_parameters(self, function, location,class_name=None):
+    def get_parameters(self, function, location, class_name=None):
         data = self.parsed["declarations"]
         parameters = []
         if location is None:
             return parameters
         if class_name is not None:
-            find=""+class_name+"/"+function
+            find = "" + class_name + "/" + function
         else:
-            find=function
+            find = function
         for element in data:
             if (
                 re.match("cpp\+parameter", element[0])
@@ -494,6 +522,8 @@ class Cpp:
     def export(self):
         for file in self.get_files():
             self.add_nodes("file", file)
+        for primitve in self.primitives:
+            self.add_nodes("Primitive", primitve)
         functions = self.get_functions()
         for func in functions.items():
             self.add_nodes("function", func, None)
