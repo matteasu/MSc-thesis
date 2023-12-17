@@ -145,7 +145,7 @@ class Cpp:
                         }
                     )
             case "type":
-                content = list(zip(content.keys(),content.values()))[0]
+                content = list(zip(content.keys(), content.values()))[0]
                 id = hash(content[0]) - hash(content[1]["name"])
                 self.viz["elements"]["edges"].append(
                     {
@@ -303,8 +303,23 @@ class Cpp:
                         )
                         i += 1
                 function["parameters"] = parameters
+                function["variables"] = self.get_variables(element[0])
                 functions[function["functionName"]] = function
         return functions
+
+    def get_variables(self, operator):
+        variables = []
+        data = self.parsed["declaredType"]
+        operator_name = "cpp+variable:" + re.split("cpp\+.+:", operator)[1]
+        for element in data:
+            if re.match("cpp\+variable:", element[0]) and operator_name in element[0]:
+                variable = {}
+                variable["name"] = re.sub("cpp\+variable:.+/", "", element[0])
+                variable["type"] = self.get_type(
+                    element[1], self.get_type_field(element[1])
+                )
+                variables.append(variable)
+        return variables
 
     def get_methods(self):
         data = self.parsed["declaredType"]
@@ -347,8 +362,10 @@ class Cpp:
                         )
                         i += 1
                 method["parameters"] = parameters
+                method["variables"] = self.get_variables(element[0])
                 id = method["class"] + "." + method["methodName"]
                 methods[id] = method
+                print(method)
         return methods
 
     def get_type_field(self, element):
@@ -359,6 +376,8 @@ class Cpp:
                 return "decl"
             if "type" in element.keys():
                 return "type"
+            if "msg" in element.keys():
+                return "msg"
         except:
             return None
 
@@ -413,6 +432,8 @@ class Cpp:
                     return "string"
                 else:
                     return re.sub("cpp\+class:\/+", "", element[field])
+            if field == "msg":
+                return None
 
     def get_parameter_type(self, element, field):
         if field == "decl":
