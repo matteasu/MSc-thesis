@@ -87,34 +87,36 @@ class Cpp:
                     }
                 )
             case "hasVariable":
-                edge_id = hash(content[0]) + hash(content[1]["variableName"])
-                self.viz["elements"]["edges"].append(
-                    {
-                        "data": {
-                            "id": edge_id,
-                            "source": content[1]["functionName"],
-                            "properties": {"weight": 1},
-                            "target": content[0],
-                            "labels": [kind],
-                        }
-                    }
-                )
-                edge_id = edge_id + hash(
-                    other[content[1]["functionName"]]["location"]["file"]
-                )
-                self.viz["elements"]["edges"].append(
-                    {
-                        "data": {
-                            "id": edge_id,
-                            "source": other[content[1]["functionName"]]["location"][
-                                "file"
-                            ],
-                            "properties": {"weight": 1},
-                            "target": content[0],
-                            "labels": ["contains"],
-                        }
-                    }
-                )
+                for variable in content[1]["variables"]:
+                    if variable is not None and variable != "":
+                        edge_id = hash(variable["name"]) + hash(content[0])
+                        self.viz["elements"]["edges"].append(
+                            {
+                                "data": {
+                                    "id": edge_id,
+                                    "source": content[0],
+                                    "properties": {"weight": 1},
+                                    "target": content[0] + "." + variable["name"],
+                                    "labels": [kind],
+                                }
+                            }
+                        )
+                        edge_id = (
+                            hash(variable["name"])
+                            + hash(content[0])
+                            + hash(content[1]["location"]["file"])
+                        )
+                        self.viz["elements"]["edges"].append(
+                            {
+                                "data": {
+                                    "id": edge_id,
+                                    "source": content[1]["location"]["file"],
+                                    "properties": {"weight": 1},
+                                    "target": content[0] + "." + variable["name"],
+                                    "labels": ["contains"],
+                                }
+                            }
+                        )
             case "invokes":
                 edge_id = hash(content["target"]) + hash(content["source"])
                 self.viz["elements"]["edges"].append(
@@ -242,6 +244,23 @@ class Cpp:
                         }
                     }
                 )
+            case "variable":
+                for variable in content[1]["variables"]:
+                    if variable is not None and variable != "":
+                        self.viz["elements"]["nodes"].append(
+                            {
+                                "data": {
+                                    "id": content[0] + "." + variable["name"],
+                                    "properties": {
+                                        "simpleName": variable["name"],
+                                        "kind": kind,
+                                    },
+                                    "labels": ["Variable"],
+                                }
+                            }
+                        )
+                        if variable["type"] is not None:
+                            self.add_edges("type", {content[0]: variable})
 
     def get_files(self):
         data = self.parsed["provides"]
@@ -365,7 +384,6 @@ class Cpp:
                 method["variables"] = self.get_variables(element[0])
                 id = method["class"] + "." + method["methodName"]
                 methods[id] = method
-                print(method)
         return methods
 
     def get_type_field(self, element):
@@ -551,6 +569,9 @@ class Cpp:
             if func[1]["parameters"]:
                 self.add_nodes("parameter", func)
                 self.add_edges("hasParameter", func)
+            if func[1]["variables"]:
+                self.add_nodes("variable", func)
+                self.add_edges("hasVariable", func)
             self.add_edges("contains", func)
 
         for c in self.get_classes().items():
@@ -566,6 +587,9 @@ class Cpp:
             if m[1]["parameters"]:
                 self.add_nodes("parameter", m)
                 self.add_edges("hasParameter", m)
+            if m[1]["variables"]:
+                self.add_nodes("variable", m)
+                self.add_edges("hasVariable", m)
         operations = deepcopy(methods)
         operations.update(functions)
         for invoke in self.get_invokes(operations):
