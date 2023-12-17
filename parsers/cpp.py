@@ -29,6 +29,25 @@ class Cpp:
                         }
                     }
                 )
+                try:
+                    edge_id = (
+                        hash(content[1]["class"])
+                        + hash(content[0])
+                        + hash(content[1]["location"]["file"])
+                    )
+                    self.viz["elements"]["edges"].append(
+                        {
+                            "data": {
+                                "id": edge_id,
+                                "source": content[1]["location"]["file"],
+                                "properties": {"weight": 1},
+                                "target": content[0],
+                                "labels": ["contains"],
+                            }
+                        }
+                    )
+                except:
+                    pass
             case "hasParameter":
                 for parameter in content[1]["parameters"]:
                     if parameter is not None and parameter != "":
@@ -363,12 +382,6 @@ class Cpp:
                     self.get_type_field(element[1]["returnType"]),
                 )
                 if element[1]["parameterTypes"]:
-                    """for parameter in element[1]["parameterTypes"]:
-                    parameters.append(
-                        self.get_parameter_type(
-                            parameter, self.get_type_field(parameter)
-                        )
-                    )"""
                     parameters = self.get_parameters(
                         method["methodName"],
                         method["location"]["file"],
@@ -396,6 +409,8 @@ class Cpp:
                 return "type"
             if "msg" in element.keys():
                 return "msg"
+            if "templateArguments" in element.keys():
+                return None
         except:
             return None
 
@@ -441,12 +456,12 @@ class Cpp:
 
     def get_type(self, element, field):
         if self.get_type_field(element[field]) is not None:
-            self.get_type(element[field], self.get_type_field(element[field]))
+            return self.get_type(element[field], self.get_type_field(element[field]))
         else:
             if field == "baseType":
                 return element[field]
             if field == "decl":
-                if element[field] == "cpp+classTemplate:///std/__cxx11/basic_string":
+                if re.match("cpp\+classTemplate", element[field]):
                     return "string"
                 else:
                     return re.sub("cpp\+class:\/+", "", element[field])
@@ -572,6 +587,7 @@ class Cpp:
             if func[1]["variables"]:
                 self.add_nodes("variable", func)
                 self.add_edges("hasVariable", func)
+            self.add_edges("returnType", func)
             self.add_edges("contains", func)
 
         for c in self.get_classes().items():
@@ -584,6 +600,7 @@ class Cpp:
         for m in methods.items():
             self.add_nodes("method", m)
             self.add_edges("hasScript", m)
+            self.add_edges("returnType", m)
             if m[1]["parameters"]:
                 self.add_nodes("parameter", m)
                 self.add_edges("hasParameter", m)
