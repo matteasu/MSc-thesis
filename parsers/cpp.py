@@ -2,6 +2,7 @@ from copy import deepcopy
 import re
 import os
 import json
+import random
 
 
 class Cpp:
@@ -47,7 +48,29 @@ class Cpp:
                         }
                     )
                 except:
-                    pass
+                    source = next(
+                        item
+                        for item in self.viz["elements"]["edges"]
+                        if item["data"]["target"] == content[1]["class"]
+                        and "contains" in item["data"]["labels"]
+                    )
+                    edge_id = (
+                        hash(content[1]["class"])
+                        + hash(content[0])
+                        + hash(source["data"]["source"])
+                    )
+
+                    self.viz["elements"]["edges"].append(
+                        {
+                            "data": {
+                                "id": edge_id,
+                                "source": source["data"]["source"],
+                                "properties": {"weight": 1},
+                                "target": content[0],
+                                "labels": ["contains"],
+                            }
+                        }
+                    )
             case "hasParameter":
                 for parameter in content[1]["parameters"]:
                     if parameter is not None and parameter != "":
