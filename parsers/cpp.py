@@ -2,7 +2,6 @@ from copy import deepcopy
 import re
 import os
 import json
-import random
 
 
 class Cpp:
