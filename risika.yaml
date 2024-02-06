@@ -1,0 +1,13 @@
+file_names: [main, libRisika, docente, libPrep, libGioco, libFile]
+std_lib: [
+    /usr/include/c++/8,
+    /usr/include/x86_64-linux-gnu/c++/8,
+    /usr/include/c++/8/backward,
+    /usr/lib/gcc/x86_64-linux-gnu/8/include,
+    /usr/local/include,
+    /usr/lib/gcc/x86_64-linux-gnu/8/include-fixed,
+    /usr/include,
+    ]
+include_paths: []
+path : /home/masuni/risika/
+cpp: "true"
