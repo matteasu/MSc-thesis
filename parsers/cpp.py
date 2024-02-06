@@ -10,11 +10,12 @@ class Cpp:
     parsed = None
     path = None
 
-    def __init__(self, path, parsed) -> None:
+    def __init__(self, path, parsed,issues=None) -> None:
         self.path = path
         self.parsed = parsed
+        self.issues = issues
 
-    def add_edges(self, kind, content, other=None):
+    def add_edges(self, kind, content):
         match kind:
             case "hasScript":
                 edge_id = hash(content[0])
@@ -190,19 +191,21 @@ class Cpp:
             case "type":
                 content = list(zip(content.keys(), content.values()))[0]
                 id = hash(content[0]) - hash(content[1]["name"])
-                self.viz["elements"]["edges"].append(
-                    {
-                        "data": {
-                            "id": id,
-                            "source": content[0] + "." + content[1]["name"],
-                            "properties": {"weight": 1},
-                            "target": content[1]["type"],
-                            "labels": [kind],
-                        }
-                    }
-                )
+                if len(content[1]["type"])!=0:
 
-    def add_nodes(self, kind, content, issues=None):
+                    self.viz["elements"]["edges"].append(
+                        {
+                            "data": {
+                                "id": id,
+                                "source": content[0] + "." + content[1]["name"],
+                                "properties": {"weight": 1},
+                                "target": content[1]["type"],
+                                "labels": [kind],
+                            }
+                        }
+                    )
+
+    def add_nodes(self, kind, content):
         match kind:
             case "file":
                 self.viz["elements"]["nodes"].append(
@@ -216,6 +219,10 @@ class Cpp:
                 )
             case "function":
                 vulnerabilities = []
+                if self.issues is not None:
+                    for issue in self.issues:
+                        if issue["target"]["script"] == content[0]:
+                            vulnerabilities.append(issue)
                 self.viz["elements"]["nodes"].append(
                     {
                         "data": {
@@ -226,7 +233,10 @@ class Cpp:
                                 "vulnerabilities": vulnerabilities,
                                 "location": content[1]["location"],
                             },
-                            "labels": ["Operation"],
+                            "labels": [
+                                "Operation",
+                                "vulnerable" if len(vulnerabilities) > 0 else "",
+                            ],
                         }
                     }
                 )
@@ -245,10 +255,14 @@ class Cpp:
                                 }
                             }
                         )
-                        if parameter["type"] is not None:
+                        if "type" in parameter.keys() and parameter["type"] is not None:
                             self.add_edges("type", {content[0]: parameter})
             case "method":
                 vulnerabilities = []
+                if self.issues is not None:
+                    for issue in self.issues:
+                        if issue["target"]["script"] == content[0]:
+                            vulnerabilities.append(issue)
                 self.viz["elements"]["nodes"].append(
                     {
                         "data": {
@@ -258,11 +272,19 @@ class Cpp:
                                 "kind": kind,
                                 "vulnerabilities": vulnerabilities,
                             },
-                            "labels": ["Operation"],
+                            "labels": [
+                                "Operation",
+                                "vulnerable" if len(vulnerabilities) > 0 else "",
+                            ],
                         }
                     }
                 )
             case "class":
+                vulnerabilities = []
+                if self.issues is not None:
+                    for issue in self.issues:
+                        if issue["target"]["script"] == content[0]:
+                            vulnerabilities.append(issue)
                 self.viz["elements"]["nodes"].append(
                     {
                         "data": {
@@ -270,8 +292,12 @@ class Cpp:
                             "properties": {
                                 "simpleName": content[1]["className"],
                                 "kind": kind,
+                                "vulnerabilities": vulnerabilities,
                             },
-                            "labels": ["Structure"],
+                            "labels": [
+                                "Structure",
+                                "vulnerable" if len(vulnerabilities) > 0 else "",
+                            ],
                         }
                     }
                 )
@@ -280,7 +306,7 @@ class Cpp:
                     {
                         "data": {
                             "id": content,
-                            "properties": {"simpleName": content},
+                            "properties": {"simpleName": content,"kind":kind},
                             "labels": [kind],
                         }
                     }
@@ -501,7 +527,7 @@ class Cpp:
                 ):
                     return "string"
                 else:
-                    return re.sub("cpp\+class:\/+", element[field]["decl"])
+                    return re.sub("cpp\+class:\/+","", element[field]["decl"])
             if "baseType" in element[field].keys():
                 return element[field]["baseType"]
             if "modifiers" in element[field].keys():
@@ -602,7 +628,7 @@ class Cpp:
             self.add_nodes("Primitive", primitve)
         functions = self.get_functions()
         for func in functions.items():
-            self.add_nodes("function", func, None)
+            self.add_nodes("function", func)
             if func[1]["parameters"]:
                 self.add_nodes("parameter", func)
                 self.add_edges("hasParameter", func)
