@@ -10,4 +10,4 @@ std_lib: [
     ]
 include_paths: []
 path : /home/masuni/risika/
-cpp: "true"
+cpp: "false"

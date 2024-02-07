@@ -50,7 +50,6 @@ def infer_extractor(path):
             issue = {}
             issue["analysis_name"] = el["bug_type_hum"]
             split = re.split("::",el["procedure"])
-            print(split)
             if len(split)>1 :
                 if split[0] == split[1]:
                     script = split[0]
