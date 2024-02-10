@@ -27,12 +27,14 @@ def cleaner(path):
         with open(os.path.join(clean_path,"m3_clean.json"),"w") as clean:
             clean.write(json.dumps(parsed))
 
-def parse_settings():
+def parse_settings(file_name):
     names = []
     stdLib = []
     includeDirs = []
     path = []
-    with open('test.yaml','r') as file:
+    if file_name is None:
+        raise AttributeError("Missing yaml file")
+    with open(file_name,'r') as file:
         settings = yaml.safe_load(file)
         try:
             cpp = settings['cpp']

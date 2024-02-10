@@ -379,15 +379,22 @@ class Cpp:
                     element[1]["returnType"], returnField
                 )
                 if element[1]["parameterTypes"]:
+                    if "file" in function["location"].keys():
+                        loc = function["location"]["file"]
+                    else:
+                        loc = None
                     parameters = self.get_parameters(
-                        function["functionName"], function["location"]["file"]
+                        function["functionName"],  loc
                     )
                     i = 0
                     for parameter in element[1]["parameterTypes"]:
-                        parameters[i]["type"] = self.get_parameter_type(
-                            parameter, self.get_type_field(parameter)
-                        )
-                        i += 1
+                        try:
+                            parameters[i]["type"] = self.get_parameter_type(
+                                parameter, self.get_type_field(parameter)
+                            )
+                            i += 1
+                        except IndexError:
+                            pass
                 function["parameters"] = parameters
                 function["variables"] = self.get_variables(element[0])
                 functions[function["functionName"]] = function
