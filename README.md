@@ -24,3 +24,5 @@ More details about this can be found in the [thesis](https://github.com/matteasu
 - At the moment, it is necessary to specify the name of the YAML file by manually modifying the `main.py` file; a future version of this tool will improve this aspect.
 - Run `main.py`
 - This knowledge extractor can also be used to embed Vulnerability information produced by analyzers such as [MATE](https://galoisinc.github.io/MATE/index.html) or [Infer](https://fbinfer.com/). By looking at `extractor.py`, it should be clear enough how to implement additional parsers for other code analyzers.
+
+this is a test
